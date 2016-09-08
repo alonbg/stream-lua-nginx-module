@@ -121,12 +121,12 @@ not supported in udp requests
     content_by_lua_block {
         local sock, err = ngx.req.udp_socket()
         sock:send("")
-        sock:receive(5)
+        sock:receive(5,4)
     }
 
 --- dgram_response
 --- error_log
-expecting 1 arguments (including the object), but got 2
+expecting 1 or 2 arguments (including the object), but got 3
 
 
 

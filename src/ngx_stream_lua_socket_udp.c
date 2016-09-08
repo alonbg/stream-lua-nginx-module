@@ -1177,8 +1177,8 @@ ngx_stream_lua_socket_udp_receive(lua_State *L)
     ngx_stream_lua_srv_conf_t             *lscf;
 
     nargs = lua_gettop(L);
-    if (nargs != 1) {
-        return luaL_error(L, "expecting 1 arguments "
+    if (nargs != 1 && nargs != 2) {
+        return luaL_error(L, "expecting 1 or 2 arguments "
                           "(including the object), but got %d", nargs);
     }
 
@@ -1242,14 +1242,15 @@ ngx_stream_lua_socket_udp_receive(lua_State *L)
 
     if (u->raw_downstream && !u->connected) {
         u->received = c->buffer->last - c->buffer->pos;
-        c->buffer->pos = ngx_copy(ngx_stream_lua_socket_udp_buffer,
-                                  c->buffer->pos, u->received);
-         ngx_stream_lua_socket_udp_handle_success(s, u);
-         u->connected = 1;
-         rc = NGX_OK;
+        c->buffer->pos =
+            ngx_copy(ngx_stream_lua_socket_udp_buffer, c->buffer->pos,
+                     u->received);
+        ngx_stream_lua_socket_udp_handle_success(s, u);
+        u->connected = 1;
+        rc = NGX_OK;
 
     } else {
-         rc = ngx_stream_lua_socket_udp_read(s, u);
+        rc = ngx_stream_lua_socket_udp_read(s, u);
     }
 
     if (rc == NGX_ERROR) {
@@ -1588,8 +1589,9 @@ ngx_stream_lua_socket_udp_handler(ngx_event_t *ev)
     c = ev->data;
     u = c->data;
     s = u->session;
+    c = s->connection;
 
-    ngx_log_debug1(NGX_LOG_DEBUG_STREAM, s->connection->log, 0,
+    ngx_log_debug1(NGX_LOG_DEBUG_STREAM, c->log, 0,
                    "stream lua udp socket handler, wev %d", (int) ev->write);
 
     u->read_event_handler(s, u);
