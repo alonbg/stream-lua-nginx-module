@@ -4,7 +4,7 @@ use Test::Nginx::Socket::Lua::Stream;
 repeat_each(2);
 #repeat_each(1);
 
-plan tests => repeat_each() * (blocks() * 3 + 2);
+plan tests => repeat_each() * (blocks() * 4);
 
 my $local_ip = `ifconfig | grep -oE '([0-9]{1,3}\\.?){4}' | grep '\\.' | grep -v '127.0.0.1' | head -n 1`;
 chomp $local_ip;
@@ -25,16 +25,16 @@ __DATA__
 === TEST 1: upstream sockets bind 127.0.0.1
 --- stream_config
 server {
-   listen 2986;
+   listen 127.0.0.1:2986 udp;
    content_by_lua_block {
-     ngx.say(ngx.var.remote_addr)
+     ngx.log(ngx.INFO, "udp bind address: " .. ngx.var.remote_addr)
     }
 }
 --- stream_server_config
   content_by_lua_block {
       local ip = "127.0.0.1"
       local port = 2986
-      local sock = ngx.socket.tcp()
+      local sock = ngx.socket.udp()
 
       local ok, err = sock:bind(ip)
       if not ok then
@@ -42,39 +42,38 @@ server {
           return
       end
 
-      local ok, err = sock:connect("127.0.0.1", port)
+      local ok, err = sock:setpeername("127.0.0.1", port)
       if not ok then
           ngx.log(ngx.ERR, err)
           return
       end
 
-      local line, err, part = sock:receive()
-      if line then
-          ngx.say(line)
-      else
+      local ok, err = sock:send("trigger")
+      if not ok then
           ngx.log(ngx.ERR, err)
       end
   }
 
---- stream_response
-127.0.0.1
 --- no_error_log
 [error]
+--- error_log eval
+["lua udp socket bind ip: 127.0.0.1",
+"udp bind address: 127.0.0.1 while handling client connection, udp client: 127.0.0.1, server: 127.0.0.1:2986"]
 
 
 === TEST 2: upstream sockets bind non loopback ip
 --- stream_config
 server {
-   listen 2986;
+   listen 127.0.0.1:2986 udp;
    content_by_lua_block {
-     ngx.say(ngx.var.remote_addr)
+     ngx.log(ngx.INFO, "udp bind address: " .. ngx.var.remote_addr)
     }
 }
 --- stream_server_config
   content_by_lua_block {
       local ip = "$TEST_NGINX_SERVER_IP"
       local port = 2986
-      local sock = ngx.socket.tcp()
+      local sock = ngx.socket.udp()
 
       local ok, err = sock:bind(ip)
       if not ok then
@@ -82,56 +81,60 @@ server {
           return
       end
 
-      local ok, err = sock:connect("127.0.0.1", port)
+      local ok, err = sock:setpeername("127.0.0.1", port)
       if not ok then
           ngx.log(ngx.ERR, err)
           return
       end
 
-      local line, err, part = sock:receive()
-      if line == ip then
-        ngx.say("ip matched")
-      else
-        ngx.log(ngx.ERR, err)
+      local ok, err = sock:send("trigger")
+      if not ok then
+          ngx.log(ngx.ERR, err)
       end
   }
 
---- stream_response
-ip matched
 --- no_error_log
 [error]
+--- error_log eval
+["lua udp socket bind ip: $ENV{TEST_NGINX_SERVER_IP}",
+"udp bind address: $ENV{TEST_NGINX_SERVER_IP} while handling client connection, udp client: $ENV{TEST_NGINX_SERVER_IP}, server: 127.0.0.1:2986"]
 
 
 === TEST 3: upstream sockets bind not exist ip
 --- stream_config
 server {
-   listen 2986;
+   listen 127.0.0.1:2986 udp;
    content_by_lua_block {
-     ngx.say(ngx.var.remote_addr)
+     ngx.log(ngx.INFO, "udp bind address: " .. ngx.var.remote_addr)
     }
 }
 --- stream_server_config
   content_by_lua_block {
       local ip = "$TEST_NGINX_NOT_EXIST_IP"
       local port = 2986
-      local sock = ngx.socket.tcp()
+      local sock = ngx.socket.udp()
 
       local ok, err = sock:bind(ip)
       if not ok then
-          ngx.log(ngx.INFO, err)
+          ngx.log(ngx.ERR, err)
+          return
       end
 
-      local ok, err = sock:connect("127.0.0.1", port)
+      local ok, err = sock:setpeername("127.0.0.1", port)
       if not ok then
-        ngx.say(err)
+          ngx.log(ngx.INFO, err)
+          return
+      end
+
+      local ok, err = sock:send("trigger")
+      if not ok then
+          ngx.log(ngx.ERR, err)
       end
 }
 
---- stream_response
-cannot assign requested address
 --- error_log eval
-["bind($ENV{TEST_NGINX_NOT_EXIST_IP}) failed",
-"lua tcp socket bind ip: $ENV{TEST_NGINX_NOT_EXIST_IP}"]
+["lua udp socket bind ip: $ENV{TEST_NGINX_NOT_EXIST_IP}",
+"bind($ENV{TEST_NGINX_NOT_EXIST_IP}) failed"]
 --- no_error_log
 [error]
 
@@ -139,37 +142,37 @@ cannot assign requested address
 === TEST 4: upstream sockets bind invalid ip
 --- stream_config
 server {
-   listen 2986;
+   listen 127.0.0.1:2986 udp;
    content_by_lua_block {
-     ngx.say(ngx.var.remote_addr)
+     ngx.log(ngx.INFO, "udp bind address from remote: " .. ngx.var.remote_addr)
+     return
     }
 }
 --- stream_server_config
   content_by_lua_block {
       local ip = "$TEST_NGINX_INVALID_IP"
       local port = 2986
-      local sock = ngx.socket.tcp()
+      local sock = ngx.socket.udp()
 
       local ok, err = sock:bind(ip)
       if not ok then
-          ngx.say(err)
+          ngx.log(ngx.INFO, err)
       end
 
-      local ok, err = sock:connect("127.0.0.1", port)
+      local ok, err = sock:setpeername("127.0.0.1", port)
       if not ok then
-        ngx.log(ngx.ERR, err)
+          ngx.log(ngx.ERR, err)
+          return
       end
 
-      local line, err, part = sock:receive()
-      if line then
-          ngx.say(line)
-      else
+      local ok, err = sock:send("trigger")
+      if not ok then
           ngx.log(ngx.ERR, err)
       end
 }
 
---- stream_response
-bad address
-127.0.0.1
 --- no_error_log
 [error]
+--- error_log eval
+["bad address while handling client connection, client: 127.0.0.1",
+"udp bind address from remote: 127.0.0.1"]
