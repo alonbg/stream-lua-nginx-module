@@ -6,7 +6,7 @@ repeat_each(2);
 
 plan tests => repeat_each() * (blocks() * 3 + 4);
 
-my $local_ip = `ifconfig | grep -oE '([0-9]{1,3}\\.?){4}' | grep '\\.' | grep -v '127.0.0.1' | head -n 1`;
+my $local_ip = `ifconfig | grep -oE 'addr:([0-9]{1,3}+\\.){3}[0-9]{1,3}' | sed -e 's/addr://' | grep -v '127.0.0.1' | head -n 1`;
 chomp $local_ip;
 
 my $local_domain_server = `dig something | grep -oE ' ([0-9]{1,3}+\\.){3}[0-9]{1,3}'`;
@@ -182,8 +182,9 @@ server {
 
 
 === TEST 5: upstream sockets bind 127.0.0.1 and resolve peername
+--- SKIP
 --- stream_config
-lua_resolver 127.0.1.1 ipv6=off;
+lua_resolver $TEST_NGINX_LOCAL_DOMAIN_SERVER ipv6=off;
 server {
    listen localhost:2986 udp;
    content_by_lua_block {

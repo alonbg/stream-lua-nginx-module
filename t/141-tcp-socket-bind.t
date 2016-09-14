@@ -6,7 +6,7 @@ repeat_each(2);
 
 plan tests => repeat_each() * (blocks() * 3 + 2);
 
-my $local_ip = `ifconfig | grep -oE '([0-9]{1,3}\\.?){4}' | grep '\\.' | grep -v '127.0.0.1' | head -n 1`;
+my $local_ip = `ifconfig | grep -oE 'addr:([0-9]{1,3}+\\.){3}[0-9]{1,3}' | sed -e 's/addr://' | grep -v '127.0.0.1' | head -n 1`;
 chomp $local_ip;
 
 my $local_domain_server = `dig something | grep -oE ' ([0-9]{1,3}+\\.){3}[0-9]{1,3}'`;
