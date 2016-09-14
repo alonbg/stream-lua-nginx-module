@@ -26,6 +26,7 @@ typedef void (*ngx_stream_lua_socket_udp_upstream_handler_pt)
 
 typedef struct {
     ngx_connection_t         *connection;
+    ngx_addr_t               *local;
     struct sockaddr          *sockaddr;
     socklen_t                 socklen;
     ngx_str_t                 server;
