@@ -143,13 +143,16 @@ static void ngx_stream_lua_ssl_handshake_handler(ngx_connection_t *c);
 static int ngx_stream_lua_ssl_free_session(lua_State *L);
 #endif
 static void ngx_stream_lua_socket_tcp_close_connection(ngx_connection_t *c);
-
+#if (NGX_HAVE_TRANSPARENT_PROXY)
+static void ngx_stream_lua_inject_socket_option_consts(lua_State *L);
+#endif
 
 enum {
     SOCKET_CTX_INDEX = 1,
     SOCKET_TIMEOUT_INDEX = 2,
     SOCKET_KEY_INDEX = 3,
-    SOCKET_BIND_INDEX = 4   /* only in upstream cosocket */
+    SOCKET_BIND_INDEX = 4,   /* only in upstream cosocket */
+    SOCKET_IP_TRANSPARENT_INDEX = 5
 };
 
 
@@ -205,10 +208,23 @@ static char ngx_stream_lua_ssl_session_metatable_key;
 #endif
 
 
+static void
+ngx_stream_lua_inject_socket_option_consts(lua_State *L)
+{
+    /* {{{ socket option constants */
+#if (NGX_HAVE_TRANSPARENT_PROXY)
+    lua_pushinteger(L, NGX_STREAM_LUA_SOCKET_OPTION_TRANSPARENT);
+    lua_setfield(L, -2, "IP_TRANSPARENT");
+#endif
+}
+
+
 void
 ngx_stream_lua_inject_socket_tcp_api(ngx_log_t *log, lua_State *L)
 {
     ngx_int_t         rc;
+
+    ngx_stream_lua_inject_socket_option_consts(L);
 
     lua_createtable(L, 0, 3 /* nrec */);    /* ngx.socket */
 
@@ -640,6 +656,17 @@ ngx_stream_lua_socket_tcp_connect(lua_State *L)
     if (local) {
         u->peer.local = local;
     }
+
+#if (NGX_HAVE_TRANSPARENT_PROXY)
+    lua_rawgeti(L, 1, SOCKET_IP_TRANSPARENT_INDEX);
+
+    if (lua_tointeger(L, -1) > 0) {
+        pc->transparent = 1;
+        ngx_log_debug0(NGX_LOG_DEBUG_STREAM, s->connection->log, 0,
+                       "stream lua set TCP upstream with IP_TRANSPARENT");
+    }
+    lua_pop(L, 1);
+#endif
 
     lua_rawgeti(L, 1, SOCKET_TIMEOUT_INDEX);
     timeout = (ngx_int_t) lua_tointeger(L, -1);
@@ -2567,8 +2594,49 @@ ngx_stream_lua_socket_tcp_close(lua_State *L)
 static int
 ngx_stream_lua_socket_tcp_setoption(lua_State *L)
 {
-    /* TODO */
-    return 0;
+    ngx_stream_session_t   *s;
+    ngx_stream_lua_ctx_t   *ctx;
+    int                     n;
+    int                     option;
+
+    n = lua_gettop(L);
+
+    if (n < 2) {
+        return luaL_error(L, "ngx.socket setoption: expecting 2 or 3 "
+                          "arguments (including the object) but seen %d",
+                          lua_gettop(L));
+    }
+
+    s = ngx_stream_lua_get_session(L);
+    if (s == NULL) {
+        return luaL_error(L, "no request found");
+    }
+
+    ctx = ngx_stream_get_module_ctx(s, ngx_stream_lua_module);
+    if (ctx == NULL) {
+        return luaL_error(L, "no ctx found");
+     }
+
+     ngx_stream_lua_check_context(L, ctx, NGX_STREAM_LUA_CONTEXT_CONTENT
+                                  | NGX_STREAM_LUA_CONTEXT_TIMER);
+
+     luaL_checktype(L, 1, LUA_TTABLE);
+
+     option = luaL_checkint(L, 2);
+
+     switch (option) {
+#if (NGX_HAVE_TRANSPARENT_PROXY)
+         case NGX_STREAM_LUA_SOCKET_OPTION_TRANSPARENT:
+             lua_rawseti(L, 1, SOCKET_IP_TRANSPARENT_INDEX);
+             lua_pushboolean(L, 1);
+           break;
+#endif
+       default:
+           return luaL_error(L, "invalid tcp socket option: %d", option);
+
+    }
+
+    return 1;
 }
 
 
