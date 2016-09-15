@@ -143,8 +143,9 @@ static void ngx_stream_lua_ssl_handshake_handler(ngx_connection_t *c);
 static int ngx_stream_lua_ssl_free_session(lua_State *L);
 #endif
 static void ngx_stream_lua_socket_tcp_close_connection(ngx_connection_t *c);
+#if (NGX_HAVE_TRANSPARENT_PROXY)
 static void ngx_stream_lua_inject_socket_option_consts(lua_State *L);
-
+#endif
 
 enum {
     SOCKET_CTX_INDEX = 1,
