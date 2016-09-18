@@ -40,7 +40,7 @@ __DATA__
     }
 
 --- dgram_response chomp
-n = 6
+n = 8
 --- no_error_log
 [error]
 

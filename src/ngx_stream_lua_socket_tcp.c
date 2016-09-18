@@ -293,7 +293,7 @@ ngx_stream_lua_inject_socket_tcp_api(ngx_log_t *log, lua_State *L)
     /* }}} */
 
     /* {{{tcp object metatable */
-    lua_pushlightuserdata(L, &ngx_stream_lua_skcoet_tcp_metatable_key);
+    lua_pushlightuserdata(L, &ngx_stream_lua_socket_tcp_metatable_key);
     lua_createtable(L, 0 /* narr */, 12 /* nrec */);
 
     lua_pushcfunction(L, ngx_stream_lua_socket_tcp_bind);
