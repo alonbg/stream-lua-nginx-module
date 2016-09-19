@@ -307,7 +307,8 @@ ngx_stream_lua_shdict_expire(ngx_stream_lua_shdict_ctx_t *ctx, ngx_uint_t n)
 
 
 void
-ngx_stream_lua_inject_shdict_api(ngx_stream_lua_main_conf_t *lmcf, lua_State *L)
+ngx_stream_lua_inject_shdict_api(ngx_log_t *log,
+    ngx_stream_lua_main_conf_t *lmcf, lua_State *L)
 {
     ngx_uint_t                       i;
     ngx_array_t                      all_zones;
@@ -315,9 +316,6 @@ ngx_stream_lua_inject_shdict_api(ngx_stream_lua_main_conf_t *lmcf, lua_State *L)
     ngx_shm_zone_t                 **zone, *shm_zone;
     ngx_pool_t                      *temp_pool;
     ngx_list_part_t                 *part;
-    ngx_log_t                       *log;
-
-    log = &lmcf->cycle->log;
 
     /* place http and stream zones in a single array */
     temp_pool = ngx_create_pool(NGX_DEFAULT_POOL_SIZE, log);
