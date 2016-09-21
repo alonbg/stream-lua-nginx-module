@@ -13,7 +13,6 @@
 #include "ngx_stream_lua_shdict.h"
 #include "ngx_stream_lua_util.h"
 
-extern ngx_module_t ngx_http_lua_module;
 
 static int ngx_stream_lua_shdict_set(lua_State *L);
 static int ngx_stream_lua_shdict_safe_set(lua_State *L);
@@ -312,10 +311,23 @@ ngx_stream_lua_inject_shdict_api(ngx_log_t *log,
 {
     ngx_uint_t                       i;
     ngx_array_t                      all_zones;
+    ngx_module_t                    *http_module = NULL;
     ngx_stream_lua_shdict_ctx_t     *ctx;
     ngx_shm_zone_t                 **zone, *shm_zone;
     ngx_pool_t                      *temp_pool;
     ngx_list_part_t                 *part;
+    ngx_module_t                   **modules;
+
+    /* Find ngx_http_lua_module */
+    modules = lmcf->cycle->modules;
+
+    for (i = 0; modules[i]; i++) {
+
+        if (ngx_strcmp(modules[i]->name, "ngx_http_lua_module") == 0) {
+            http_module = modules[i];
+            break;
+        }
+    }
 
     /* place http and stream zones in a single array */
     temp_pool = ngx_create_pool(NGX_DEFAULT_POOL_SIZE, log);
@@ -349,8 +361,8 @@ ngx_stream_lua_inject_shdict_api(ngx_log_t *log,
             i = 0;
         }
 
-        if (&ngx_http_lua_module == shm_zone->tag ||
-            &ngx_stream_lua_module == shm_zone->tag )
+        if ((shm_zone->tag == http_module && shm_zone->tag != NULL)
+            || shm_zone->tag == &ngx_stream_lua_module)
         {
             zone = ngx_array_push(&all_zones);
 
